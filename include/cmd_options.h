@@ -12,6 +12,7 @@ public:
     ~ProgramOptions();
 
     enum class COMMAND_TYPE {
+        UNDEFINED,
         ENCRYPT,
         DECRYPT,
         CHECKSUM,
@@ -19,6 +20,7 @@ public:
 
     void Parse(int argc, char *argv[]);
 
+    bool isHelp() const;
     COMMAND_TYPE GetCommand() const { return command_; }
     std::string GetInputFile() const { return inputFile_; }
     std::string GetOutputFile() const { return outputFile_; }
@@ -35,6 +37,8 @@ private:
     std::string inputFile_;
     std::string outputFile_;
     std::string password_;
+
+    bool m_is_help_triggered;
 
     boost::program_options::options_description desc_;
 };

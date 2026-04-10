@@ -74,20 +74,27 @@ int main(int argc, char *argv[]) {
             output.push_back(outBuf[i]);
         }
         EVP_CIPHER_CTX_free(ctx);
-        std::print("String encoded successfully. Result: '{}'\n\n", output);
+        // std::print("String encoded successfully. Result: '{}'\n\n", output);
         EVP_cleanup();
         //
         // Конец примера
         //
 
         CryptoGuard::ProgramOptions options;
+        options.Parse(argc, argv);
+        if (options.isHelp())
+            return 0;
 
         CryptoGuard::CryptoGuardCtx cryptoCtx;
 
         using COMMAND_TYPE = CryptoGuard::ProgramOptions::COMMAND_TYPE;
         switch (options.GetCommand()) {
+        case COMMAND_TYPE::UNDEFINED:
+            std::print("No command specified\n");
+            break;
+
         case COMMAND_TYPE::ENCRYPT:
-            std::print("File encoded successfully\n");
+            // std::print("File encoded successfully\n");
             break;
 
         case COMMAND_TYPE::DECRYPT:
