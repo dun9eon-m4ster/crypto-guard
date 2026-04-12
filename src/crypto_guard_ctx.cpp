@@ -7,6 +7,7 @@
 #include <memory>
 #include <openssl/evp.h>
 #include <print>
+#include <sstream>
 #include <stdexcept>
 #include <string_view>
 #include <vector>
@@ -16,6 +17,7 @@ namespace CryptoGuard {
 class CryptoGuardCtx::Impl {
 public:
     using CipherCtx = std::unique_ptr<EVP_CIPHER_CTX, decltype([](EVP_CIPHER_CTX *ctx) { EVP_CIPHER_CTX_free(ctx); })>;
+    using ChecksumCtx = std::unique_ptr<EVP_MD_CTX, decltype([](EVP_MD_CTX *ctx) { EVP_MD_CTX_free(ctx); })>;
 
     Impl() { OpenSSL_add_all_algorithms(); }
 
@@ -120,7 +122,35 @@ public:
         }
     }
 
-    std::string calculateChecksum(std::iostream &inStream) { return "NOT_IMPLEMENTED"; }
+    std::string calculateChecksum(std::iostream &inStream) {
+        auto ctx = ChecksumCtx(EVP_MD_CTX_new());
+
+        unsigned char checksum[32]{};
+
+        std::vector<unsigned char> inBuf;
+        while (true) {
+            unsigned char c;
+            inStream >> c;
+            if (inStream.eof())
+                break;
+            inBuf.push_back(c);
+        }
+
+        EVP_DigestInit_ex(ctx.get(), EVP_sha256(), nullptr);
+        EVP_DigestUpdate(ctx.get(), inBuf.data(), inBuf.size());
+        EVP_DigestFinal_ex(ctx.get(), checksum, nullptr);
+
+        std::stringstream result;
+
+        // std::cout << "checksum raw: ";
+        for (uint i = 0; i < 32; ++i) {
+            // std::cout << std::hex << checksum[i];
+            result << std::hex << (int)checksum[i];
+        }
+        // std::cout << std::endl;
+
+        return result.str();
+    }
 };
 
 CryptoGuardCtx::CryptoGuardCtx() : pimpl(std::make_unique<Impl>()) {}

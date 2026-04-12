@@ -1,6 +1,7 @@
 #include "crypto_guard_ctx.h"
 #include <gtest/gtest.h>
 #include <ios>
+#include <sstream>
 #include <stdexcept>
 
 TEST(CryptoGuardCtx, EncryptInError) {
@@ -64,4 +65,13 @@ TEST(CryptoGuardCtx, ComplexCheck) {
 
     EXPECT_NE(encrypted.str(), decrypted.str());
     EXPECT_EQ(decrypted.str(), data);
+}
+
+TEST(CryptoGuardCtx, Checksum) {
+    CryptoGuard::CryptoGuardCtx ctx;
+
+    std::stringstream stream("1");
+
+    auto checksum = ctx.CalculateChecksum(stream);
+    EXPECT_EQ(checksum, "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b");
 }

@@ -14,6 +14,11 @@ int main(int argc, char *argv[]) {
         if (options.isHelp())
             return 0;
 
+        // std::cout << "10 in hex is:" << std::hex << (char)10 << std::endl;
+
+        std::fstream src(options.GetInputFile(), std::ios::in | std::ios::out);
+        std::fstream dst(options.GetOutputFile(), std::ios::in | std::ios::out);
+
         CryptoGuard::CryptoGuardCtx ctx;
 
         using COMMAND_TYPE = CryptoGuard::ProgramOptions::COMMAND_TYPE;
@@ -23,24 +28,17 @@ int main(int argc, char *argv[]) {
             break;
 
         case COMMAND_TYPE::ENCRYPT: {
-            std::fstream src(options.GetInputFile(), std::ios::in | std::ios::out);
-            std::fstream dst(options.GetOutputFile(), std::ios::in | std::ios::out);
-
             ctx.EncryptFile(src, dst, options.GetPassword());
-
             break;
         }
         case COMMAND_TYPE::DECRYPT: {
-            std::fstream src(options.GetInputFile(), std::ios::in | std::ios::out);
-            std::fstream dst(options.GetOutputFile(), std::ios::in | std::ios::out);
-
             ctx.DecryptFile(src, dst, options.GetPassword());
-
             break;
         }
-        case COMMAND_TYPE::CHECKSUM:
-            std::print("Checksum: {}\n", "CHECKSUM_NOT_IMPLEMENTED");
+        case COMMAND_TYPE::CHECKSUM: {
+            std::cout << ctx.CalculateChecksum(src) << std::endl;
             break;
+        }
 
         default:
             throw std::runtime_error{"Unsupported command"};
