@@ -1,6 +1,7 @@
 
 #include "crypto_guard_ctx.h"
 #include <array>
+#include <cstddef>
 #include <exception>
 #include <ios>
 #include <iostream>
@@ -48,78 +49,66 @@ public:
         return params;
     }
 
-    void encryptFile(std::iostream &inStream, std::iostream &outStream, std::string_view password) {
+    template <typename InBuffArray, typename OutBuffArray>
+    void encryptDecrypt(std::iostream &inStream, std::iostream &outStream, std::string_view password, bool is_encrypt,
+                        InBuffArray &inBuff, OutBuffArray &outBuff) {
         auto ctx = CipherCtx(EVP_CIPHER_CTX_new());
 
         auto params = CreateChiperParamsFromPassword(password);
-        params.encrypt = 1;
+        params.encrypt = is_encrypt ? 1 : 0;
         EVP_CipherInit_ex(ctx.get(), params.cipher, nullptr, params.key.data(), params.iv.data(), params.encrypt);
 
-        std::vector<unsigned char> inBuf;
+        size_t inBufSize = 0;
+        auto processBuffer = [&]() {
+            int out_len = 0;
+            EVP_CipherUpdate(ctx.get(), outBuff.data(), &out_len, inBuff.data(), inBufSize);
+            for (int i = 0; i < out_len; ++i) {
+                outStream << outBuff[i];
+                if (outStream.good() == false)
+                    throw std::runtime_error{"outStream write error"};
+            }
+            inBufSize = 0;
+        };
+
         inStream >> std::noskipws;
         while (true) {
             unsigned char c;
             inStream >> c;
-            if (inStream.eof())
+            if (inStream.eof()) {
+                if (inBufSize != 0)
+                    processBuffer();
                 break;
-            else if (inStream.good() == false)
+            } else if (inStream.good() == false)
                 throw std::runtime_error{"inStream read error"};
 
-            inBuf.push_back(c);
+            inBuff[inBufSize++] = std::move(c);
+            if (inBufSize == inBuff.size())
+                processBuffer();
         }
 
-        std::vector<unsigned char> outBuf(inBuf.size() + EVP_MAX_BLOCK_LENGTH, 0);
-        int outLen, total_len = 0;
+        int outLen = 0;
 
-        EVP_CipherUpdate(ctx.get(), outBuf.data(), &outLen, inBuf.data(), inBuf.size());
-        total_len += outLen;
+        EVP_CipherFinal_ex(ctx.get(), outBuff.data(), &outLen);
 
-        // Заканчиваем работу с cipher
-        EVP_CipherFinal_ex(ctx.get(), outBuf.data() + outLen, &outLen);
-        total_len += outLen;
-
-        for (int i = 0; i < total_len; ++i) {
-            outStream << outBuf[i];
+        for (int i = 0; i < outLen; ++i) {
+            outStream << outBuff[i];
             if (outStream.good() == false)
                 throw std::runtime_error{"outStream write error"};
         }
     }
 
+    void encryptFile(std::iostream &inStream, std::iostream &outStream, std::string_view password) {
+        std::array<unsigned char, 10000> inBuff;
+        std::array<unsigned char, inBuff.size() + EVP_MAX_BLOCK_LENGTH> outBuff;
+
+        encryptDecrypt(inStream, outStream, password, true, inBuff, outBuff);
+    }
+
     void decryptFile(std::iostream &inStream, std::iostream &outStream, std::string_view password) {
-        auto ctx = CipherCtx(EVP_CIPHER_CTX_new());
+        std::array<unsigned char, 10000> inBuff;
+        std::array<unsigned char, inBuff.size()> outBuff;
 
-        auto params = CreateChiperParamsFromPassword(password);
-        params.encrypt = 0;
-        EVP_CipherInit_ex(ctx.get(), params.cipher, nullptr, params.key.data(), params.iv.data(), params.encrypt);
-
-        std::vector<unsigned char> inBuf;
-        inStream >> std::noskipws;
-        while (true) {
-            unsigned char c;
-            inStream >> c;
-            if (inStream.eof())
-                break;
-            else if (inStream.good() == false)
-                throw std::runtime_error{"inStream read error"};
-
-            inBuf.push_back(c);
-        }
-
-        std::vector<unsigned char> outBuf(inBuf.size(), 0);
-        int outLen, total_len = 0;
-
-        EVP_CipherUpdate(ctx.get(), outBuf.data(), &outLen, inBuf.data(), inBuf.size());
-        total_len += outLen;
-
-        // Заканчиваем работу с cipher
-        EVP_CipherFinal_ex(ctx.get(), outBuf.data() + outLen, &outLen);
-        total_len += outLen;
-
-        for (int i = 0; i < total_len; ++i) {
-            outStream << outBuf[i];
-            if (outStream.good() == false)
-                throw std::runtime_error{"outStream write error"};
-        }
+        encryptDecrypt(inStream, outStream, password, false, inBuff, outBuff);
     }
 
     std::string calculateChecksum(std::iostream &inStream) {
