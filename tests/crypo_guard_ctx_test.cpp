@@ -75,3 +75,12 @@ TEST(CryptoGuardCtx, Checksum) {
     auto checksum = ctx.CalculateChecksum(stream);
     EXPECT_EQ(checksum, "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b");
 }
+
+TEST(CryptoGuardCtx, ChecksumInvalidInput) {
+    CryptoGuard::CryptoGuardCtx ctx;
+
+    std::stringstream invalid_stream;
+    invalid_stream.setstate(std::ios_base::failbit);
+
+    ASSERT_THROW(ctx.CalculateChecksum(invalid_stream), std::runtime_error);
+}

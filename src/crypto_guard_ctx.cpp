@@ -133,6 +133,8 @@ public:
             inStream >> c;
             if (inStream.eof())
                 break;
+            else if (inStream.good() == false)
+                throw std::runtime_error{"inStream read error"};
             inBuf.push_back(c);
         }
 
