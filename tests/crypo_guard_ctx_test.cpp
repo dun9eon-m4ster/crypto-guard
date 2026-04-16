@@ -76,6 +76,23 @@ TEST(CryptoGuardCtx, Checksum) {
     EXPECT_EQ(checksum, "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b");
 }
 
+TEST(CryptoGuardCtx, AnotherChecksum) {
+    CryptoGuard::CryptoGuardCtx ctx;
+
+    std::stringstream stream(
+        "Crime and Punishment follows the mental anguish and moral dilemmas of Rodion Raskolnikov, an impoverished "
+        "former law student in Saint Petersburg who plans to kill an unscrupulous pawnbroker, an old woman who stores "
+        "money and valuable objects in her flat. He theorises that with the money he could liberate himself from "
+        "poverty and go on to perform great deeds, and seeks to convince himself that certain crimes are justifiable "
+        "if they are committed in order to remove obstacles to the higher goals of extraordinary men. Once the "
+        "deed is done, however, he finds himself wracked with confusion, paranoia, and disgust. His theoretical "
+        "justifications lose all their power as he struggles with guilt and horror and is confronted with both "
+        "internal and external consequences of his deed.");
+
+    auto checksum = ctx.CalculateChecksum(stream);
+    EXPECT_EQ(checksum, "e4603bb8366f3c0c2d2920480509a1b815b11cda2ab75ea2de6b65a3cc67d477");
+}
+
 TEST(CryptoGuardCtx, ChecksumInvalidInput) {
     CryptoGuard::CryptoGuardCtx ctx;
 
