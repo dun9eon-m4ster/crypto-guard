@@ -8,11 +8,9 @@
 #include <iostream>
 #include <memory>
 #include <openssl/evp.h>
-#include <print>
 #include <sstream>
 #include <stdexcept>
 #include <string_view>
-#include <vector>
 
 namespace CryptoGuard {
 
@@ -57,12 +55,15 @@ public:
 
         auto params = CreateChiperParamsFromPassword(password);
         params.encrypt = is_encrypt ? 1 : 0;
-        EVP_CipherInit_ex(ctx.get(), params.cipher, nullptr, params.key.data(), params.iv.data(), params.encrypt);
+        if (!EVP_CipherInit_ex(ctx.get(), params.cipher, nullptr, params.key.data(), params.iv.data(), params.encrypt))
+            throw std::runtime_error("EVP_CipherInit_ex() error");
 
         size_t inBufSize = 0;
         auto processBuffer = [&]() {
             int out_len = 0;
-            EVP_CipherUpdate(ctx.get(), outBuff.data(), &out_len, inBuff.data(), inBufSize);
+            if (!EVP_CipherUpdate(ctx.get(), outBuff.data(), &out_len, inBuff.data(), inBufSize))
+                throw std::runtime_error("EVP_CipherUpdate() error");
+
             for (int i = 0; i < out_len; ++i) {
                 outStream << outBuff[i];
                 if (outStream.good() == false)
@@ -89,7 +90,8 @@ public:
 
         int outLen = 0;
 
-        EVP_CipherFinal_ex(ctx.get(), outBuff.data(), &outLen);
+        if (!EVP_CipherFinal_ex(ctx.get(), outBuff.data(), &outLen))
+            throw std::runtime_error("EVP_CipherFinal_ex() error");
 
         for (int i = 0; i < outLen; ++i) {
             outStream << outBuff[i];
@@ -117,13 +119,15 @@ public:
     std::string calculateChecksum(std::iostream &inStream) {
         auto ctx = ChecksumCtx(EVP_MD_CTX_new());
 
-        EVP_DigestInit_ex(ctx.get(), EVP_sha256(), nullptr);
+        if (!EVP_DigestInit_ex(ctx.get(), EVP_sha256(), nullptr))
+            throw std::runtime_error{"EVP_DigestInit_ex() error"};
 
         std::array<char, DataPortionSize> inBuff;
         while (true) {
             inStream.read(inBuff.data(), static_cast<std::streamsize>(inBuff.size()));
 
-            EVP_DigestUpdate(ctx.get(), inBuff.data(), inStream.gcount());
+            if (!EVP_DigestUpdate(ctx.get(), inBuff.data(), inStream.gcount()))
+                throw std::runtime_error{"EVP_DigestUpdate() error"};
 
             if (inStream.eof())
                 break;
@@ -132,7 +136,8 @@ public:
         }
 
         unsigned char checksum[32]{};
-        EVP_DigestFinal_ex(ctx.get(), checksum, nullptr);
+        if (!EVP_DigestFinal_ex(ctx.get(), checksum, nullptr))
+            throw std::runtime_error{"EVP_DigestFinal_ex() error"};
 
         std::stringstream result;
         for (uint i = 0; i < 32; ++i) {
