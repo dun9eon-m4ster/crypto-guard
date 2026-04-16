@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <exception>
+#include <iomanip>
 #include <ios>
 #include <iostream>
 #include <memory>
@@ -97,15 +98,17 @@ public:
         }
     }
 
+    enum { DataPortionSize = 10000 };
+
     void encryptFile(std::iostream &inStream, std::iostream &outStream, std::string_view password) {
-        std::array<unsigned char, 10000> inBuff;
+        std::array<unsigned char, DataPortionSize> inBuff;
         std::array<unsigned char, inBuff.size() + EVP_MAX_BLOCK_LENGTH> outBuff;
 
         encryptDecrypt(inStream, outStream, password, true, inBuff, outBuff);
     }
 
     void decryptFile(std::iostream &inStream, std::iostream &outStream, std::string_view password) {
-        std::array<unsigned char, 10000> inBuff;
+        std::array<unsigned char, DataPortionSize> inBuff;
         std::array<unsigned char, inBuff.size()> outBuff;
 
         encryptDecrypt(inStream, outStream, password, false, inBuff, outBuff);
@@ -114,31 +117,27 @@ public:
     std::string calculateChecksum(std::iostream &inStream) {
         auto ctx = ChecksumCtx(EVP_MD_CTX_new());
 
-        unsigned char checksum[32]{};
+        EVP_DigestInit_ex(ctx.get(), EVP_sha256(), nullptr);
 
-        std::vector<unsigned char> inBuf;
+        std::array<char, DataPortionSize> inBuff;
         while (true) {
-            unsigned char c;
-            inStream >> c;
+            inStream.read(inBuff.data(), static_cast<std::streamsize>(inBuff.size()));
+
+            EVP_DigestUpdate(ctx.get(), inBuff.data(), inStream.gcount());
+
             if (inStream.eof())
                 break;
-            else if (inStream.good() == false)
+            if (inStream.good() == false)
                 throw std::runtime_error{"inStream read error"};
-            inBuf.push_back(c);
         }
 
-        EVP_DigestInit_ex(ctx.get(), EVP_sha256(), nullptr);
-        EVP_DigestUpdate(ctx.get(), inBuf.data(), inBuf.size());
+        unsigned char checksum[32]{};
         EVP_DigestFinal_ex(ctx.get(), checksum, nullptr);
 
         std::stringstream result;
-
-        // std::cout << "checksum raw: ";
         for (uint i = 0; i < 32; ++i) {
-            // std::cout << std::hex << checksum[i];
-            result << std::hex << (int)checksum[i];
+            result << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(checksum[i]);
         }
-        // std::cout << std::endl;
 
         return result.str();
     }
